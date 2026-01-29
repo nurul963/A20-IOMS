@@ -1,6 +1,8 @@
 import { pool } from "../conn/db.js";
 import { ADD_USER, EXSISTING_USER, GET_ALL_USER } from "../query/userQuery.js";
 import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+import { SECRATE_KEY } from "../util/config.js";
 export const getAllUsers=async(req,resp)=>{
     let conn;
     try {
@@ -74,11 +76,20 @@ export const loginUser=async(req,resp)=>{
                 message:"Ivalid Creadential!!"
             })
         }
+        const userId=user[0].id.toString();
+        const userRole=user[0].role;
+        const token=jwt.sign({id:userId,role:userRole},SECRATE_KEY,{expiresIn:'1h'});
+        resp.cookie('token',token,{
+            httpOnly:true,
+            secure:false,
+            samesite:'strict',
+            maxAge:60*60*1000
+        })
         return resp.status(200).json({
             statusCode:200,
             message:"Login success",
             id:user[0].id.toString(),
-            name:user[0].name
+            name:user[0].name,
         });
 
     } catch (error) {
@@ -89,5 +100,16 @@ export const loginUser=async(req,resp)=>{
     }
     finally{
         if(conn)conn.release();
+    }
+}
+export const logoutUser=async(req,resp)=>{
+    try {
+        resp.clearCookie('token');
+        return resp.status(200).json({
+            statusCode:200,
+            message:"Logout Successfully"
+        })
+    } catch (error) {
+        return resp.json(error);
     }
 }
